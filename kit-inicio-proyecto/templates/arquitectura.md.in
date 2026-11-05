@@ -20,10 +20,10 @@ Pendiente de INI-001 e INI-002: contexto propietario, lenguaje, agregados, datos
 
 ## Decisiones tecnológicas
 
-Consultar y registrar lenguaje/framework, UI, persistencia, identidad, operación e integraciones que falten. Adaptar autoload, imports y composición a la raíz registrada, conservando Domain/Application sin dependencias del framework. Las convenciones y comprobaciones concretas se documentan después de revisar versiones y entorno.
+El stack y la configuración operativa viven en [la ficha](../proyecto.md). Aquí documentar fronteras, propiedad de datos y contratos, más autoload/imports/composición pertinentes a la raíz registrada. Conservar Domain/Application sin dependencias del framework. Actualizar esta arquitectura solo si cambia su contenido, sin replicar estados de las tareas.
 
 ## Verificación prevista
 
-Definir pruebas de invariantes, casos de uso y contratos, más controles de autorización, concurrencia, migración y UI cuando el producto los requiera. Un chequeo de estructura/imports no sustituye comportamiento o aceptación.
+Precisar las invariantes y contratos a comprobar según el [flujo de pruebas](../../.agents/skills/plan-maestro-desarrollo-sistema/references/flujo-de-trabajo.md#pruebas-según-el-cambio). Un chequeo de estructura/imports no sustituye comportamiento o aceptación.
 
 Procedimiento: [skill de arquitectura](../../.agents/skills/arquitectura-hexagonal-ddd/SKILL.md). Decisiones y sus fuentes: [registro](../decisiones/README.md).

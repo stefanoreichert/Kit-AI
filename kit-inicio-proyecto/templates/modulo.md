@@ -11,7 +11,7 @@ Problema, actores, fuentes y decisiones confirmadas; propuestas y dudas identifi
 
 ## Lenguaje y fronteras
 
-Contexto propietario, agregados, datos y contratos publicados; no derivar módulos de una pantalla.
+Referenciar el contexto propietario, agregados y contratos definidos en arquitectura; describir aquí solo su relación con los requisitos de esta área. No duplicar su definición ni derivar módulos de una pantalla.
 
 ## Reglas y recorridos
 
@@ -19,7 +19,7 @@ Invariantes, permisos, errores e integraciones. Concurrencia, idempotencia y ope
 
 ## Estado observado y límites
 
-En proyectos existentes: implementación encontrada, pruebas ejecutadas, faltantes y decisiones. Citar archivos y resultados; no atribuir aceptación a la sola presencia de código.
+En proyectos existentes: contraste fechado de implementación, pruebas, faltantes y decisiones, con enlaces a su evidencia principal. No mantener aquí un segundo estado vigente de tareas ni atribuir aceptación a la sola presencia de código.
 
 ## Tareas
 

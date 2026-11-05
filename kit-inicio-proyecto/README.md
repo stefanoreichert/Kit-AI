@@ -14,7 +14,9 @@ Las fuentes son tu descripción, documentos, planes previos, diseños, contratos
 
 El agente registra tu respuesta y el inventario en `docs/fuentes/README.md`. Ese índice empieza con la consulta pendiente. Antes de cerrar INI-001 debe recibir y registrar la respuesta, aunque sea «no tengo documentos adicionales; partimos de mi descripción». Encontrar adjuntos no reemplaza preguntar si hay otras fuentes. Si ya contestaste explícitamente, se conserva esa respuesta sin repetir. Podés guardar copias locales en `docs/fuentes/documentos/` si te sirve; es opcional.
 
-El prompt contiene la especificación suficiente para generar una base compatible si el kit no está adjunto; los recursos incluidos permiten reutilizar una implementación probada del validador y el visor.
+El prompt contiene la especificación para generar una base compatible si el kit no está adjunto; si está disponible, reutilizar sus recursos. Los recorridos de preparación, ejecución autorizada y reanudación, las ubicaciones principales y la estrategia de pruebas se definen en [el flujo](skills/plan-maestro-desarrollo-sistema/references/flujo-de-trabajo.md). No volver a pegar el prompt ni reinstalar/relevar por rutina al ejecutar una tarea.
+
+Ejemplos de pedidos: «Prepará este repositorio con el kit» inicia el relevamiento; «Implementá RF-036» consulta esa tarea autorizada y sus referencias; «Retomá RF-036» contrasta su evidencia con los cambios desde el último estado comprobado. RF-036 es un ejemplo, no una tarea preinstalada.
 
 ## Instalación de los recursos
 
@@ -69,6 +71,9 @@ Se preparan tres tareas iniciales de relevamiento/arquitectura/plan, todas pendi
 
 ```sh
 python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py check
+python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py task INI-001 --format context
+python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py task INI-001 --format json
+python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py report --status EN_CURSO --summary
 python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py report --status EN_CURSO
 python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py report --json
 python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py tree
@@ -76,6 +81,10 @@ python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py serve --port
 ```
 
 El HTML se exporta a `docs/plan-maestro/visualizacion.html`. El servicio local imprime su URL; `--port 0` solicita un puerto libre al sistema y Ctrl+C lo detiene. Las opciones `--root`, `--plan-dir` y `--output` permiten usar otros directorios sin mover los scripts. No se sirven archivos del repositorio mediante un servidor de directorios genérico.
+
+`task ID` valida todo el plan antes del recorte y muestra la tarea completa, sin truncar campos, con archivo/línea y dependencias directas resumidas. `--format json` (o `--json`) ofrece la misma información estructurada. No abre referencias ni ejecuta instrucciones de los campos y no escribe archivos; por eso rechaza `--output`, filtros y `--summary`. ID inexistente o plan inválido devuelve código 1; argumentos inválidos, 2. No hace falta ejecutar check inmediatamente antes de una consulta que ya valida el mismo plan.
+
+`report --summary` omite el listado de tareas; junto con `--json` devuelve contadores globales, cantidad seleccionada y todos los errores. No altera la validación global ni limita el diagnóstico de un plan inválido. `check` ya es breve y `report --json` mantiene la salida completa anterior. Resumir no significa ignorar errores ni considerar correcta una salida truncada.
 
 Los scripts de esta carpeta usan el mismo código que se instala. Para probar todo el kit:
 
@@ -99,3 +108,5 @@ python3 -B scripts/package_kit.py --output /ruta/kit-inicio-proyecto.zip
 ```
 
 Se incluyen únicamente prompt, documentación, scripts, skills, plantillas y pruebas; no se agregan `.env`, cachés, proyectos temporales, capturas ni datos de una aplicación.
+
+La versión 1.2.0 conserva el esquema 1, los catorce campos y los comandos anteriores. Agrega task, --summary y el flujo compartido; las instalaciones anteriores se concilian preservando datos y evidencia. El procedimiento y las mediciones disponibles están en [EVALUACION.md](EVALUACION.md): bytes de salida de la CLI medidos; sin mediciones de ahorro de tokens o tiempo de un agente.

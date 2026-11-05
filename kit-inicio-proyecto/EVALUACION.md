@@ -1,0 +1,81 @@
+# Comparación reproducible de versiones
+
+La comparación de herramientas y la evaluación con un agente responden preguntas distintas. No convertir bytes, líneas o caracteres en tokens estimados ni atribuir porcentajes de ahorro sin mediciones del entorno.
+
+## Mediciones disponibles — 2026-11-05
+
+Referencia anterior: `04f621f` (kit 1.1.0); candidato: kit 1.2.0 de esta entrega. Python 3.9.6, mismo intérprete/equipo y plan temporal instalado con la versión anterior: tres tareas iniciales pendientes, INI-002 seleccionada y una dependencia directa. No es una aplicación comercial ni una evaluación de desarrollo con agente.
+
+Se alternaron tres ejecuciones por comando, capturando stdout completo, código de salida y tiempo de pared con perf_counter. Ambos validan todo el plan. Se comprobó que los catorce campos de la tarea seleccionada coinciden y que INI-001 figura como dependencia. El reporte anterior incluye las tres tareas; task entrega una completa y resúmenes de sus prerrequisitos.
+
+| Comando | Bytes de stdout UTF-8 | Tiempos de pared, segundos | Mediana, segundos |
+| --- | ---: | --- | ---: |
+| Anterior: report --json | 5839 | 0.080902, 0.030886, 0.029643 | 0.030886 |
+| Actual: task INI-002 --json | 2596 | 0.031040, 0.031319, 0.029263 | 0.031040 |
+
+La salida específica contiene menos datos ajenos a la tarea; estos tiempos breves no muestran una mejora de latencia. No se midieron tokens, contexto incorporado por un agente, llamadas a sus herramientas ni tiempo total de resolver una tarea. Las seis ejecuciones CLI de esta comprobación no son llamadas medidas de un agente.
+
+Regresión del candidato: `python3 -B -m unittest discover -s tests -v` → 53 pruebas correctas en 3.008 segundos informados por unittest. Incluye consultas, rechazo global, ausencia de escrituras, contenido no confiable, comandos anteriores, instalación, repetición, colisiones, ZIP trasladado y seguridad del visor. `node --check skills/manage-project-roadmap/assets/roadmap-tree.js`, sintaxis Python en memoria y validación oficial de las tres skills/metadatos → correctos. No es una comparación de velocidad de suites con distinta cobertura ni equivale a ejecutar las tres tareas siguientes con un agente.
+
+El intento inicial de usar py_compile no terminó por falta de permiso de escritura en la caché del intérprete. Se sustituyó por compilación en memoria, sin insistir en esa ruta; la suite importó y ejecutó los scripts correctamente. No queda ese intento registrado como una comprobación aprobada.
+
+## Repetir la medición de la CLI
+
+Preparar una copia anterior y otra candidata, registrar sus SHAs y usar el mismo proyecto/plan válido sin modificarlo entre comandos. Este ejemplo solo consulta y falla si un comando devuelve error; imprime los datos medidos completos. Sustituir las cuatro rutas/ID:
+
+```sh
+python3 -B - /copia-anterior/kit-inicio-proyecto /copia-actual/kit-inicio-proyecto /ruta/proyecto INI-002 <<'PY'
+import json, statistics, subprocess, sys, time
+from pathlib import Path
+previous, current, project, task_id = sys.argv[1:]
+script = 'skills/manage-project-roadmap/scripts/roadmap.py'
+commands = {
+    'previous_report_json': [sys.executable, '-B', str(Path(previous) / script), 'report', '--json', '--root', project],
+    'current_task_json': [sys.executable, '-B', str(Path(current) / script), 'task', task_id, '--json', '--root', project],
+}
+samples, outputs = {key: [] for key in commands}, {}
+for run in range(3):
+    order = list(commands) if run % 2 == 0 else list(reversed(commands))
+    for name in order:
+        started = time.perf_counter()
+        result = subprocess.run(commands[name], capture_output=True)
+        samples[name].append(time.perf_counter() - started)
+        if result.returncode:
+            sys.stderr.buffer.write(result.stdout + result.stderr)
+            raise SystemExit(result.returncode)
+        outputs[name] = result.stdout
+before, after = json.loads(outputs['previous_report_json']), json.loads(outputs['current_task_json'])
+selected = next(item for item in before['tasks'] if item['id'] == task_id)
+assert selected['fields'] == after['task']['fields']
+assert selected['dependencies'] == [item['id'] for item in after['dependencies']]
+print(json.dumps({name: {'stdout_bytes': len(outputs[name]), 'wall_seconds': samples[name],
+                         'median_seconds': statistics.median(samples[name])} for name in commands}, indent=2))
+PY
+```
+
+Para comparar pruebas, fijar la misma selección existente en ambas versiones, capturar resultado y duración por separado y declarar pruebas nuevas que solo tiene el candidato. No interpretar suites con distinta cobertura como una comparación directa de velocidad.
+
+## Evaluación pendiente con un agente
+
+Elegir tareas reales o fixtures anonimizadas del mismo repositorio, sin desarrollar una aplicación adicional para medir el kit. Preparar antes de los ensayos un commit base, solicitudes, fuentes confirmadas, alcance, criterios y pruebas de aceptación independientes de la solución. No completar incógnitas durante una rama por inferencia.
+
+| Caso | Contrato y aceptación que deben fijarse antes | Estado de la evaluación A/B |
+| --- | --- | --- |
+| Corrección pequeña | Error reproducible, comportamiento esperado, límites y prueba de regresión del fallo. | No ejecutada. |
+| CRUD acotado | Operaciones/campos, invariantes, errores, persistencia y permisos aplicables, con pruebas de recorridos y estados. | No ejecutada. |
+| Cambio de permisos | Actores/recursos, matriz esperada, aislamiento y casos permitidos/denegados, con pruebas positivas y negativas. | No ejecutada. |
+
+1. Para cada caso crear dos copias aisladas e idénticas del commit base, fuentes y respuestas. Variar solo el kit/instrucciones de A (04f621f) y B (SHA candidato registrado). Conciliar su instalación sin sobrescribir datos ajenos. Conservar la misma arquitectura, esquema, stack, estado inicial y autorización de la tarea.
+2. Usar chats independientes sin historia previa, con el mismo modelo, configuración, herramientas, permisos, recursos y criterios de parada. No pegar al agente el resultado esperado del otro ensayo. Registrar versiones y condiciones, incluidos fallos de servicios externos. Si hay repetición para controlar variabilidad, mantener el mismo protocolo y alternar el orden A/B; no elegir solo el mejor resultado.
+3. Ejecutar la misma solicitud de tarea autorizada. Para comprobar reanudación, terminar una sesión en un punto de traspaso previamente definido, conservar su evidencia y empezar una sesión nueva sin transmitir memoria adicional. No interrumpir una escritura ni fabricar un cierre. Registrar por separado preparación, ejecución y reanudación; no cargar a una variante costos iniciales que la otra no tuvo.
+4. Conservar tiempos de inicio/fin, registros de herramientas y pruebas, diff final y aceptación independiente. El evaluador debe revisar autorización, arquitectura/DDD, pruebas necesarias, integridad y trazabilidad con los mismos criterios; comparar consumo solo junto con corrección y pendientes. Una variante incompleta no cuenta como ahorro equivalente.
+5. Medir tokens solo desde contadores reales proporcionados por el entorno/modelo; si no están disponibles, marcar N/D. Medir contexto incorporado con registros de lecturas/salidas recibidas, declarando si se cuentan bytes/caracteres, repeticiones y límites visibles. No sumar el tamaño del repositorio como si todo se hubiese leído ni confundir stdout con entrada total del modelo.
+6. Registrar llamadas a herramientas desde el log real, con política de conteo fija para llamadas compuestas y subcomandos. Tiempo de pruebas: intervalos medidos de procesos o trazas; tiempo total: pared de cada recorrido, incluyendo o separando espera del usuario según una regla idéntica y documentada. Conservar fallos y ampliar el diagnóstico cuando sea necesario.
+
+Una fila por ejecución, guardada en el informe principal del ensayo y enlazada desde su tarea:
+
+| Caso/variante/repetición | SHAs, modelo y condiciones | Total / pruebas (s) | Llamadas y criterio de conteo | Contexto, unidad y registro | Tokens reales / N/D | Criterios cumplidos, pruebas, fallos y límites |
+| --- | --- | --- | --- | --- | --- | --- |
+| Completar con una ejecución real | Registrar | Medir | Medir | Medir o N/D | Medir o N/D | Revisar el resultado y enlazar evidencia |
+
+Faltan las seis ejecuciones reales de los tres casos, su aceptación, tiempos totales/de pruebas, llamadas, contexto y contadores de tokens disponibles. Hasta realizarlas no hay una medición de ahorro del agente. No duplicar este informe en fichas, decisiones y tareas: enlazar la evidencia principal con un resumen.

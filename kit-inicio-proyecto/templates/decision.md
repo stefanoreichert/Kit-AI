@@ -6,12 +6,12 @@ Crear el registro en `docs/decisiones` y enlazarlo desde su índice y las tareas
 # DEC-AAAA-MM-DD-NN — Asunto
 
 - Estado: pendiente / confirmada / sustituida
-- Fuente y responsable de la decisión:
+- Fecha, fuente y responsable de la decisión:
 - Problema y contexto:
 - Alternativas relevantes y sus consecuencias:
 - Decisión confirmada, si existe:
 - Alcance, contratos y tareas afectados:
 - Evidencia o motivo:
 - Sustituye / sustituida por:
-- Próximo paso:
+- Tareas de resolución/seguimiento (enlaces, sin duplicar su estado o siguiente paso):
 ```

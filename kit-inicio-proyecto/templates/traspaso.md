@@ -6,11 +6,12 @@ Agregar este registro dentro de Evidencia actual y actualizar responsable, fecha
 Fecha y responsable:
 Resultado disponible y criterios pendientes:
 Archivos intervenidos y propósito:
-Comandos ejecutados y resultados:
+Base comprobada: revisión/commit si existe, cambios locales relevantes y archivos nuevos observados:
+Comandos, códigos de salida y resumen de resultados; enlaces a informes extensos:
 No verificado y motivo:
 Decisiones y fuentes aplicadas:
 Impedimento concreto y condición de desbloqueo, si existe:
-Primera acción para retomar:
+Referencias que deben contrastarse al retomar:
 ```
 
-Conservar evidencia útil y usar datos de prueba o anonimizados, sin secretos ni información personal de una instalación.
+La primera acción queda en Próximo paso, sin mantener otra copia aquí. Conservar evidencia útil y usar datos de prueba o anonimizados, sin secretos ni información personal. Al retomar contrastar cambios desde la base comprobada según el flujo; este registro no sustituye status/diff ni las instrucciones aplicables.
