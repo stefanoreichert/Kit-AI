@@ -5,7 +5,7 @@ description: Diseñar, implementar y revisar arquitectura hexagonal con DDD en e
 
 # Arquitectura hexagonal y DDD
 
-Leer `AGENTS.md`, `docs/proyecto.md` y `docs/arquitectura/README.md` desde la raíz del proyecto. Confirmar stack antes de aplicar perfiles: [Laravel](references/laravel.md), [Flutter](references/flutter.md) o [Go](references/go.md). Leer los pertinentes a los componentes confirmados; para otro stack, documentar la adaptación sin copiar convenciones de un lenguaje distinto. Un sistema puede combinar perfiles sin compartir detalles de sus adaptadores.
+Leer instrucciones aplicables y las secciones de ficha, arquitectura, decisiones y contratos afectadas por la tarea. Aplicar el recorrido pertinente de [planificación](../plan-maestro-desarrollo-sistema/references/flujo-de-trabajo.md), sin repetir preparación al ejecutar o retomar. Confirmar stack pendiente antes de elegir perfil: [Laravel](references/laravel.md), [Flutter](references/flutter.md) o [Go](references/go.md); cargar solo los pertinentes. Para otro stack, documentar su adaptación sin copiar convenciones ajenas. Un sistema puede combinar perfiles sin compartir detalles de sus adaptadores.
 
 ## Preparar la arquitectura
 
@@ -18,14 +18,25 @@ Leer `AGENTS.md`, `docs/proyecto.md` y `docs/arquitectura/README.md` desde la ra
 - Los contextos se comunican con contratos publicados, no mediante tablas, modelos, casos de uso internos o implementaciones de otro contexto. La orquestación usa esos contratos y adaptadores explícitos. SharedKernel se limita a conceptos realmente compartidos con propietario y semántica común.
 - Precisar límites transaccionales y concurrentes desde las invariantes. No considerar atómica una llamada externa junto a una transacción local. Elegir idempotencia, outbox, reintentos o compensación según el recorrido; no imponer CQRS, event sourcing o un bus por defecto.
 
-Registrar decisiones materiales con la plantilla de `docs/plantillas/decision.md`. Mantener las incógnitas como decisiones pendientes y avanzar en lo independiente. Conservar fuentes y autorizaciones existentes; los ejemplos de otro proyecto no son requisitos.
+Registrar cambios materiales en decisiones según el flujo y su plantilla; una modificación rutinaria no requiere una nueva decisión. Mantener incógnitas pendientes, conservar fuentes y autorizaciones; los ejemplos de otro proyecto no son requisitos.
+
+## Modelado de Domain
+
+Exigir los elementos que correspondan al modelo de negocio:
+
+- **Entidad:** cuando el concepto conserva identidad y tiene ciclo de vida o comportamiento. Su estado cambia mediante operaciones que protegen invariantes, no por escrituras arbitrarias de la UI/ORM.
+- **Value object:** cuando representa un concepto definido por su valor, igualdad y restricciones propias. Encapsular validación semántica y conservar inmutabilidad; no sustituirlo por un string/DTO si eso dispersa invariantes.
+- **Agregado y raíz:** cuando hay un límite de consistencia que debe proteger invariantes al modificar entidades/valores. Precisar su frontera y punto de entrada; no agrupar todos los modelos ni crear contenedores sin una razón de negocio.
+- **Servicios/eventos de dominio:** para políticas que no pertenecen naturalmente a una entidad/valor y hechos del negocio necesarios para sus recorridos, respectivamente. No generar uno por cada operación CRUD por rutina.
+
+No exigir todas las categorías en cada contexto ni crear clases vacías para cumplir carpetas. Tampoco omitir entidades, valores o agregados necesarios para reducir tokens: documentar qué concepto/invariante justificó su elección y probar su comportamiento. Los DTOs de transporte no sustituyen el modelo; las reglas no se trasladan a Eloquent, controladores, componentes o adaptadores.
 
 ## Aplicar a trabajo autorizado
 
-Leer la tarea y sus criterios antes de modificar código; actualizar estado y evidencia mediante las skills del plan. El arranque del kit prepara documentación, skills, herramientas y la raíz src con `.gitkeep`, sin contextos ficticios. Instalar un framework o desarrollar funcionalidades requiere que el pedido cubra ese trabajo; no nace de invocar esta skill.
+Consultar la tarea y sus dependencias mediante roadmap; el flujo define autorización, estados y evidencia. Preparar src con `.gitkeep` no autoriza frameworks, contextos ficticios ni funcionalidades.
 
 Modelar invariantes en el dominio; comprobar permisos e identidad/tenant en límites y casos de uso con contratos confiables. Tratar errores externos mediante contratos de error del núcleo; el adaptador los traduce. Registrar datos necesarios sin secretos ni cuerpos completos con información personal. La UI ofrece errores comprensibles y conserva los detalles técnicos en la observabilidad apropiada.
 
-Probar invariantes, casos de uso, contratos y adaptadores afectados. Agregar pruebas de concurrencia, idempotencia, autorización, migración y UI cuando sus criterios las requieran. Un chequeo de imports es estructural; no demuestra aislamiento, reglas correctas ni una integración operativa.
+Aplicar la estrategia de pruebas del flujo a las invariantes, casos de uso, contratos y adaptadores afectados. Un chequeo de imports es estructural; no demuestra aislamiento, reglas correctas ni una integración operativa.
 
 En un repositorio existente, identificar los desvíos concretos y proponer cortes de refactorización con alcance. Una ubicación heredada fuera de src se registra como desvío, no como excepción confirmada; no agregar contextos de negocio allí ni migrar toda la aplicación sin un pedido que lo cubra. No atribuir pureza de dominio a una estructura de carpetas: revisar imports, herencia, tipos y dependencias de Domain/Application, y adaptar autoload/composición para cargar src.

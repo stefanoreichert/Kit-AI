@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 
 KIT = Path(__file__).resolve().parents[1]
-VERSION = '1.1.0'
+VERSION = '1.3.0'
 PROFILES = {
     'base': 'stack por consultar; no se adopta un framework automáticamente',
     'laravel': 'Laravel confirmado; versiones, UI, persistencia e integraciones se relevan en el proyecto',
@@ -78,6 +78,7 @@ def prepare(target: Path, name: str, profile: str, started: str | None = None,
         files[destination] = render((KIT / 'templates' / source).read_text(encoding='utf-8'), values).encode('utf-8')
     required = (
         'arquitectura-hexagonal-ddd/SKILL.md', 'plan-maestro-desarrollo-sistema/SKILL.md',
+        'plan-maestro-desarrollo-sistema/references/flujo-de-trabajo.md',
         'plan-maestro-desarrollo-sistema/references/plan-schema.json', 'manage-project-roadmap/SKILL.md',
         'manage-project-roadmap/scripts/plan_model.py', 'manage-project-roadmap/scripts/roadmap.py',
         'manage-project-roadmap/scripts/roadmap_server.py', 'manage-project-roadmap/assets/roadmap-tree.html',

@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
+from contextlib import ExitStack
 import re
 from collections import Counter
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / 'plan-maestro-desarrollo-sistema/references/plan-schema.json'
 SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding='utf-8'))
@@ -31,30 +35,66 @@ def iso_date(value: str) -> date:
     return date.fromisoformat(value)
 
 
+def read_evidence_image(path: Path, plan_dir: Path) -> bytes:
+    """Read a bounded regular image without traversing symbolic links."""
+    root = plan_dir.resolve()
+    try:
+        path = root / path.absolute().relative_to(plan_dir.absolute())
+    except ValueError:
+        raise ValueError('debe ser un archivo dentro del plan') from None
+    resolved = path.resolve()
+    if not resolved.is_relative_to(root):
+        raise ValueError('debe ser un archivo dentro del plan')
+    for component in (path, *path.parents):
+        if component == root:
+            break
+        if component.is_symlink():
+            raise ValueError('no admite enlaces simbólicos')
+    if resolved.suffix.lower() not in IMAGE_TYPES:
+        raise ValueError('tiene un tipo no permitido (' + ', '.join(IMAGE_TYPES) + ')')
+    if not resolved.is_file():
+        raise ValueError('no existe como archivo regular')
+    expected = resolved.stat()
+    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
+    with ExitStack() as stack:
+        if os.open in os.supports_dir_fd and hasattr(os, 'O_NOFOLLOW') and hasattr(os, 'O_DIRECTORY'):
+            directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            stack.callback(os.close, directory)
+            relative = resolved.relative_to(root)
+            for name in relative.parts[:-1]:
+                directory = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+                stack.callback(os.close, directory)
+            descriptor = os.open(relative.name, flags, dir_fd=directory)
+        else:
+            descriptor = os.open(resolved, flags)
+        stream = stack.enter_context(os.fdopen(descriptor, 'rb'))
+        opened = os.fstat(stream.fileno())
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (expected.st_dev, expected.st_ino):
+            raise ValueError('cambió durante la lectura')
+        if opened.st_size > MAX_IMAGE_BYTES:
+            raise ValueError(f'supera {MAX_IMAGE_BYTES // 1024 // 1024} MB')
+        data = stream.read(MAX_IMAGE_BYTES + 1)
+        if len(data) > MAX_IMAGE_BYTES:
+            raise ValueError(f'supera {MAX_IMAGE_BYTES // 1024 // 1024} MB')
+        return data
+
+
 def evidence_images(task: dict, plan_dir: Path) -> tuple[list, list]:
-    """Imágenes de Evidencia actual; plan_dir ya resuelto. Las rutas son relativas al .md de la tarea."""
+    """Images are relative to the task specification, never remote resources."""
     images, errors = [], []
     for alt, reference in IMAGE.findall(task['fields'].get('Evidencia actual', '')):
-        path = (plan_dir / task['source']).parent / reference
-        problem = None
         try:
-            resolved = path.resolve()
             if not alt.strip():
-                problem = 'requiere texto alternativo'
-            elif path.is_symlink() or not resolved.is_relative_to(plan_dir):
-                problem = 'debe ser un archivo dentro del plan'
-            elif resolved.suffix.lower() not in IMAGE_TYPES:
-                problem = 'tiene un tipo no permitido (' + ', '.join(IMAGE_TYPES) + ')'
-            elif not resolved.is_file():
-                problem = 'no existe'
-            elif resolved.stat().st_size > MAX_IMAGE_BYTES:
-                problem = f'supera {MAX_IMAGE_BYTES // 1024 // 1024} MB'
-        except (OSError, ValueError):
-            problem = 'tiene una ruta inválida'
-        if problem:
+                raise ValueError('requiere texto alternativo')
+            parsed = urlsplit(reference)
+            if not reference.strip() or parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or Path(reference).is_absolute():
+                raise ValueError('requiere una ruta relativa local, sin URL')
+            path = (plan_dir / task['source']).parent / reference
+            read_evidence_image(path, plan_dir)
+            images.append({'alt': alt.strip(), 'path': path.resolve().relative_to(plan_dir).as_posix()})
+        except (OSError, ValueError) as error:
+            problem = str(error) if isinstance(error, ValueError) else 'tiene una ruta inválida o cambió durante la lectura'
             errors.append(f"{task['id']}: la imagen {reference} {problem}.")
-        else:
-            images.append({'alt': alt.strip(), 'path': resolved.relative_to(plan_dir).as_posix()})
     return images, errors
 
 

@@ -20,7 +20,7 @@
   let entering = new Set(), changed = new Set(), detailTask = null;
   const motionClasses = (node, id) => {node.classList.toggle("enter", entering.has(id)); node.classList.toggle("changed", changed.has(id));};
   const slide = (node, delta) => {
-    if (matchMedia("(prefers-reduced-motion: no-preference)").matches) node.animate([{opacity: 0, transform: `translateX(${delta * 12}px)`}, {opacity: 1, transform: "none"}], {duration: 200, easing: "cubic-bezier(.2,0,0,1)"});
+    if (typeof node.animate === "function" && matchMedia("(prefers-reduced-motion: no-preference)").matches) node.animate([{opacity: 0, transform: `translateX(${delta * 12}px)`}, {opacity: 1, transform: "none"}], {duration: 200, easing: "cubic-bezier(.2,0,0,1)"});
   };
   let scale = 1, pan = {x: 0, y: 0}, bounds = {width: 1, height: 1}, drag = null;
   const element = (tag, text, className) => {
@@ -233,7 +233,7 @@
     if (chain || !visible.some((item) => item.id === task.id)) body.append(element("p", chain ? `Cadena completa de ${chain}; los filtros quedan suspendidos hasta salir.` : "Esta tarea quedó fuera de los filtros actuales."));
     const actions = element("div", undefined, "detail-actions"), branch = element("button", chain ? "Salir de la cadena" : "Ver cadena completa");
     branch.addEventListener("click", () => {chain = chain ? null : task.id; render();}); actions.append(branch); body.append(actions);
-    if (task.images.length) body.append(element("h3", "Evidencia visual"), imageGallery(task.images));
+    if (task.images?.length) body.append(element("h3", "Evidencia visual"), imageGallery(task.images));
     body.append(relationSection("Requisitos", task.dependencies), relationSection("Dependientes", dependents.get(task.id)));
     for (const label of data.fieldNames) {
       body.append(element("h3", label === "Dependencias" ? "Dependencias: texto del plan" : label), element("p", task.fields[label]));
