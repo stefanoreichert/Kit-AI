@@ -4,7 +4,7 @@ Preparación iniciada el {{DATE}}. La instalación agrega herramientas y documen
 
 - Perfil de adaptación: `{{PROFILE}}` — {{PROFILE_DESCRIPTION}}
 - Raíz del código propio: `{{SOURCE_ROOT}}/`, relativa a este repositorio; `/src` es obligatoria salvo elección expresa del usuario. Documentar solicitud y fecha de cualquier excepción.
-- Fuentes: [índice](fuentes/README.md); consulta al usuario pendiente hasta registrar su respuesta explícita, incluso si confirma que no hay documentos adicionales.
+- Fuentes: [índice](fuentes/README.md), que conserva la respuesta y estado de la consulta.
 - Lenguaje/framework/versiones por componente: registrar los confirmados; consultar lo que falte y conservar combinaciones de stacks cuando correspondan.
 - Interfaz, plataformas y ejecución: por relevar.
 - Base de datos y persistencia: por relevar.
@@ -13,5 +13,7 @@ Preparación iniciada el {{DATE}}. La instalación agrega herramientas y documen
 - Autorización inicial: preparar requisitos, arquitectura, skills, plan y visor. Desarrollo funcional sujeto a un pedido posterior que lo incluya.
 
 El agente consulta el stack y las fuentes al iniciar y usa lo ya informado. Si el usuario no eligió tecnología, conserva el perfil base hasta resolver la decisión. Un manifiesto existente es evidencia del stack observado, no una autorización para cambiarlo.
+
+Esta ficha es la ubicación principal del stack/configuración operativa; actualizarla cuando cambien. Estado, responsable, fechas y siguiente paso pertenecen a la tarea, no a esta ficha.
 
 Las decisiones se registran en [decisiones](decisiones/README.md); los contextos y contratos en [arquitectura](arquitectura/README.md). Las tareas y su estado viven en [plan maestro](plan-maestro/README.md).

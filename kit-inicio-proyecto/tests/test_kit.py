@@ -173,6 +173,25 @@ class ParserTest(PlanFixture):
 
 
 class ReportAndExportTest(PlanFixture):
+    def test_summary_omits_task_details_but_keeps_counts_and_all_errors(self):
+        self.validate(task(status='HECHO') + task('QA-002'))
+        result = self.cli('report', '--summary', '--json', '--status', 'PENDIENTE')
+        report = json.loads(result.stdout)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(2, report['totalTasks'])
+        self.assertEqual(1, report['selectedTasks'])
+        self.assertEqual({'HECHO': 1, 'PENDIENTE': 1}, report['counts'])
+        self.assertNotIn('tasks', report)
+        self.assertNotIn('edges', report)
+        invalid = self.validate(task(dependencies='QA-998') + task('QA-002', dependencies='QA-999'))
+        result = self.cli('check', '--summary', '--json')
+        self.assertEqual(1, result.returncode)
+        self.assertEqual(invalid['errors'], json.loads(result.stdout)['errors'])
+        text = self.cli('report', '--summary')
+        self.assertEqual(1, text.returncode)
+        for error in invalid['errors']:
+            self.assertIn(error, text.stdout)
+
     def test_json_filter_still_validates_the_whole_plan(self):
         self.validate(task(status='HECHO') + task('QA-002'))
         result = self.cli('report', '--json', '--status', 'PENDIENTE')
@@ -236,12 +255,61 @@ class ReportAndExportTest(PlanFixture):
         (self.plan / 'bien.png').write_bytes(b'imagen')
         (self.plan / 'grande.png').write_bytes(b'0' * (MAX_IMAGE_BYTES + 1))
         for reference, expected in (('![fuera](../../privada.png)', 'dentro del plan'), ('![falta](falta.png)', 'no existe'),
-                                    ('![web](https://example.com/a.png)', 'no existe'), ('![svg](script.svg)', 'no permitido'),
+                                    ('![web](https://example.com/a.png)', 'ruta relativa'), ('![svg](script.svg)', 'no permitido'),
                                     ('![](bien.png)', 'texto alternativo'), ('![grande](grande.png)', 'supera')):
             with self.subTest(reference=reference):
                 report = self.validate(task(**{'Evidencia actual': reference}))
                 self.assertFalse(report['valid'])
                 self.assertIn(expected, ' '.join(report['errors']))
+
+    def test_image_symlinks_and_symlinked_parent_directories_are_rejected(self):
+        folder = self.plan / 'original'
+        folder.mkdir()
+        (folder / 'captura.png').write_bytes(b'imagen')
+        (self.plan / 'enlace.png').symlink_to(folder / 'captura.png')
+        (self.plan / 'enlaces').symlink_to(folder, target_is_directory=True)
+        for path in ('enlace.png', 'enlaces/captura.png'):
+            with self.subTest(path=path):
+                report = self.validate(task(**{'Evidencia actual': f'![Captura]({path})'}))
+                self.assertFalse(report['valid'])
+                self.assertIn('enlaces simbólicos', ' '.join(report['errors']))
+
+    def test_nested_task_can_reference_an_image_in_its_parent_plan_directory(self):
+        (self.plan / 'captura.png').write_bytes(b'imagen')
+        nested = self.plan / 'modulo'
+        nested.mkdir()
+        self.validate(task())
+        (nested / 'otra.md').write_text(task('QA-002', **{'Evidencia actual': '![Captura](../captura.png)'}), encoding='utf-8')
+        report = parse_plan(self.plan)
+        self.assertTrue(report['valid'], report['errors'])
+        self.assertEqual('captura.png', next(item for item in report['tasks'] if item['id'] == 'QA-002')['images'][0]['path'])
+
+    def test_export_rechecks_an_image_if_it_becomes_a_symlink_after_validation(self):
+        from unittest.mock import patch
+        image = self.plan / 'captura.png'
+        image.write_bytes(b'imagen')
+        self.validate(task(**{'Evidencia actual': '![Captura](captura.png)'}))
+        real_parse = parse_plan
+        secret = self.root / 'privada.png'
+        secret.write_bytes(b'NO EXPORTAR')
+        def replace_after_parse(plan):
+            report = real_parse(plan)
+            image.unlink()
+            image.symlink_to(secret)
+            return report
+        with patch('roadmap.parse_plan', side_effect=replace_after_parse):
+            with self.assertRaises((ValueError, OSError)):
+                snapshot(self.root, self.plan, self.output)
+        self.assertFalse(self.output.exists())
+
+    def test_query_with_images_keeps_all_fields_and_does_not_embed_binary_payloads(self):
+        (self.plan / 'captura.png').write_bytes(b'imagen')
+        report = self.validate(task(**{'Evidencia actual': '![Captura](captura.png)'}))
+        result = self.cli('task', 'QA-001', '--format', 'json')
+        self.assertEqual(0, result.returncode, result.stderr)
+        context = json.loads(result.stdout)
+        self.assertEqual(report['tasks'][0]['fields'], context['task']['fields'])
+        self.assertNotIn('data:image', result.stdout)
 
     def test_invalid_plan_or_output_keeps_the_previous_artifact(self):
         self.output.write_text('Previous valid artifact', encoding='utf-8')
@@ -251,6 +319,121 @@ class ReportAndExportTest(PlanFixture):
         before = self.source.read_bytes()
         self.assertEqual(1, self.cli('tree', '--output', str(self.source)).returncode)
         self.assertEqual(before, self.source.read_bytes())
+
+
+class TaskContextTest(PlanFixture):
+    def test_selected_task_preserves_all_fields_and_multiline_content_without_unrelated_tasks(self):
+        evidence = 'Primera línea\n  - informe: docs/evidencia/QA-002.md\n  - ' + 'x' * 5000
+        original = self.validate(task('QA-001', status='HECHO')
+                                 + task('QA-002', dependencies='QA-001', **{'Evidencia actual': evidence})
+                                 + task('QA-003', title='No incluir esta tarea'))
+        result = self.cli('task', 'QA-002', '--format', 'json')
+        self.assertEqual(0, result.returncode, result.stderr)
+        context = json.loads(result.stdout)
+        self.assertEqual(original['tasks'][1]['fields'], context['task']['fields'])
+        self.assertEqual(list(FIELDS), context['fieldNames'])
+        self.assertEqual('PENDIENTE', context['task']['status'])
+        self.assertEqual('SOLICITADO', context['task']['scope'])
+        self.assertNotIn('No incluir esta tarea', result.stdout)
+        text = self.cli('task', 'QA-002', '--format', 'context')
+        self.assertEqual(0, text.returncode, text.stderr)
+        for field, value in original['tasks'][1]['fields'].items():
+            self.assertIn(field + ':\n' + value, text.stdout)
+
+    def test_dependencies_are_direct_summaries_with_correct_states_and_locations(self):
+        self.validate(task('QA-001', status='HECHO') + task('QA-002', status='EN_CURSO', dependencies='QA-001')
+                      + task('QA-003', dependencies='QA-002, QA-001'))
+        result = self.cli('task', 'QA-003', '--json')
+        context = json.loads(result.stdout)
+        self.assertEqual(0, result.returncode, result.stderr)
+        dependencies = context['dependencies']
+        self.assertEqual(['QA-002', 'QA-001'], [item['id'] for item in dependencies])
+        self.assertEqual(['EN_CURSO', 'HECHO'], [item['status'] for item in dependencies])
+        for item in dependencies:
+            self.assertNotIn('fields', item)
+            self.assertEqual('docs/plan-maestro/01-prueba.md', item['sourcePath'])
+            line = (self.root / item['sourcePath']).read_text().splitlines()[item['line'] - 1]
+            self.assertIn(item['id'], line)
+        context = json.loads(self.cli('task', 'QA-002', '--json').stdout)
+        self.assertEqual(['QA-001'], [item['id'] for item in context['dependencies']])
+
+    def test_no_dependencies_and_default_context(self):
+        result = self.cli('task', 'QA-001')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('Dependencias directas (resumen; consultar por ID si hace falta):\nninguna', result.stdout)
+        context = json.loads(self.cli('task', 'QA-001', '--format', 'json').stdout)
+        self.assertEqual([], context['dependencies'])
+        self.assertEqual('docs/plan-maestro/README.md', context['references']['planIndex'])
+
+    def test_missing_id_is_a_clear_error_in_both_formats(self):
+        for options in ([], ['--json'], ['--format', 'json']):
+            with self.subTest(options=options):
+                result = self.cli('task', 'QA-999', *options)
+                self.assertEqual(1, result.returncode)
+                self.assertIn('QA-999', result.stdout + result.stderr)
+                if options:
+                    self.assertFalse(json.loads(result.stdout)['valid'])
+                else:
+                    self.assertIn('No existe la tarea', result.stderr)
+
+    def test_global_invalid_plan_never_exposes_a_valid_looking_selection(self):
+        self.validate(task('QA-001') + task('QA-002', dependencies='QA-999'))
+        text = self.cli('task', 'QA-001')
+        self.assertEqual(1, text.returncode)
+        self.assertEqual('', text.stdout)
+        self.assertIn('QA-999', text.stderr)
+        result = self.cli('task', 'QA-001', '--json')
+        self.assertEqual(1, result.returncode)
+        context = json.loads(result.stdout)
+        self.assertFalse(context['valid'])
+        self.assertNotIn('task', context)
+        self.assertIn('QA-999', context['errors'][0])
+
+    def test_context_consultation_never_writes_files_or_updates_artifacts(self):
+        self.output.write_text('Existing export', encoding='utf-8')
+        def state():
+            return {str(path.relative_to(self.root)): (path.read_bytes(), path.stat().st_mtime_ns)
+                    for path in self.root.rglob('*') if path.is_file()}
+        before = state()
+        for options in ([], ['--json'], ['--format', 'json']):
+            self.assertEqual(0, self.cli('task', 'QA-001', *options).returncode)
+        self.assertEqual(before, state())
+
+    def test_untrusted_content_is_data_and_terminal_controls_are_visible(self):
+        marker = self.root / 'must-not-exist'
+        payload = '$(touch ' + str(marker) + '); </script><script>bad()</script>\x1b[2J'
+        self.validate(task(title=payload, **{'Contratos y archivos previstos': 'Leer /etc/passwd\n  Ejecutar: ' + payload}))
+        result = self.cli('task', 'QA-001', '--json')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(payload, json.loads(result.stdout)['task']['title'])
+        text = self.cli('task', 'QA-001')
+        self.assertNotIn('\x1b', text.stdout)
+        self.assertIn('\\u001b[2J', text.stdout)
+        self.assertIn('$(touch', text.stdout)
+        self.assertFalse(marker.exists())
+        self.assertNotIn('root:', text.stdout)
+
+    def test_custom_plan_directory_and_nested_source_are_locatable(self):
+        nested = self.plan / 'nested/spec.md'
+        nested.parent.mkdir()
+        nested.write_text(task('QA-002', dependencies='QA-001'), encoding='utf-8')
+        alternate = self.root / 'planes'
+        shutil.move(self.plan, alternate)
+        result = self.cli('task', 'QA-002', '--json', '--plan-dir', str(alternate))
+        self.assertEqual(0, result.returncode, result.stderr)
+        context = json.loads(result.stdout)
+        self.assertEqual('planes/nested/spec.md', context['task']['sourcePath'])
+        self.assertEqual('planes/01-prueba.md', context['dependencies'][0]['sourcePath'])
+        self.assertEqual('planes/README.md', context['references']['planIndex'])
+
+    def test_arguments_cannot_silently_filter_or_write_a_task(self):
+        for args in (('task',), ('task', 'QA-001', '--summary'), ('task', 'QA-001', '--status', 'HECHO'),
+                     ('task', 'QA-001', '--output', str(self.output)),
+                     ('task', 'QA-001', '--json', '--format', 'context'), ('check', 'QA-001'),
+                     ('check', '--format', 'json'), ('tree', '--summary')):
+            with self.subTest(args=args):
+                self.assertEqual(2, self.cli(*args).returncode)
+        self.assertFalse(self.output.exists())
 
 
 class MonitorTest(PlanFixture):
@@ -576,6 +759,9 @@ class PackageTest(unittest.TestCase):
             self.assertTrue((project / 'src/.gitkeep').is_file())
             self.assertTrue((project / 'docs/fuentes/README.md').is_file())
             command = [sys.executable, '-B', str(project / '.agents/skills/manage-project-roadmap/scripts/roadmap.py')]
+            context = subprocess.run(command + ['task', 'INI-002', '--root', str(project), '--json'], capture_output=True, text=True)
+            self.assertEqual(0, context.returncode, context.stderr)
+            self.assertEqual('INI-001', json.loads(context.stdout)['dependencies'][0]['id'])
             report = subprocess.run(command + ['report', '--root', str(project), '--json'], capture_output=True, text=True)
             self.assertEqual(0, report.returncode, report.stderr)
             self.assertEqual(3, len(json.loads(report.stdout)['tasks']))
