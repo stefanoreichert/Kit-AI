@@ -33,3 +33,5 @@ El visor permite búsqueda, filtros, detalle, zoom y cadenas; las flechas van de
 Al cambiar herramientas, ejecutar sus regresiones; si cambia la interfaz del visor, revisarla visualmente. Aplicar la estrategia de pruebas y diagnóstico del flujo. No debilitar validaciones para obtener verde ni usar una captura de demo como evidencia de un producto.
 
 Las capturas declaradas en Evidencia actual se validan como archivos del plan y se muestran en Evidencia visual; se embeben en el HTML sin rutas nuevas del servidor. PNG, JPG, GIF y WebP, hasta 5 MB por imagen, con descripción obligatoria; no SVG, URL externas o enlaces simbólicos. Las imágenes aumentan el tamaño de la exportación.
+
+Las microinteracciones usan CSS y Web Animations API sin dependencias. Las entradas se limitan a tareas recién visibles; cambios de estado pulsan una vez. Zoom por botones se anima; rueda y arrastre siguen inmediatos. prefers-reduced-motion desactiva movimiento; si falta Web Animations API la galería sigue navegando sin animación.

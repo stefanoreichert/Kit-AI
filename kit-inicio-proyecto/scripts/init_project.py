@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 
 KIT = Path(__file__).resolve().parents[1]
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 PROFILES = {
     'base': 'stack por consultar; no se adopta un framework automáticamente',
     'laravel': 'Laravel confirmado; versiones, UI, persistencia e integraciones se relevan en el proyecto',
