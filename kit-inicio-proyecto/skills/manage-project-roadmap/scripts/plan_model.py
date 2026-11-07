@@ -38,6 +38,10 @@ def iso_date(value: str) -> date:
 def read_evidence_image(path: Path, plan_dir: Path) -> bytes:
     """Read a bounded regular image without traversing symbolic links."""
     root = plan_dir.resolve()
+    try:
+        path = root / path.absolute().relative_to(plan_dir.absolute())
+    except ValueError:
+        raise ValueError('debe ser un archivo dentro del plan') from None
     resolved = path.resolve()
     if not resolved.is_relative_to(root):
         raise ValueError('debe ser un archivo dentro del plan')
