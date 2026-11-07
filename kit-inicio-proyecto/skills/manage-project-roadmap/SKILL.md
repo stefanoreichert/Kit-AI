@@ -31,3 +31,5 @@ La exportación HTML es autosuficiente. La sincronización escucha en 127.0.0.1,
 El visor permite búsqueda, filtros, detalle, zoom y cadenas; las flechas van del prerrequisito al dependiente según IDs, sin inferir estados. Todos los campos se conservan. Su reporte no acredita entrega funcional ni aceptación o publicación.
 
 Al cambiar herramientas, ejecutar sus regresiones; si cambia la interfaz del visor, revisarla visualmente. Aplicar la estrategia de pruebas y diagnóstico del flujo. No debilitar validaciones para obtener verde ni usar una captura de demo como evidencia de un producto.
+
+Las capturas declaradas en Evidencia actual se validan como archivos del plan y se muestran en Evidencia visual; se embeben en el HTML sin rutas nuevas del servidor. PNG, JPG, GIF y WebP, hasta 5 MB por imagen, con descripción obligatoria; no SVG, URL externas o enlaces simbólicos. Las imágenes aumentan el tamaño de la exportación.

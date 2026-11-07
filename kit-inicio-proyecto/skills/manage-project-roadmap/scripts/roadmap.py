@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import html
 import json
@@ -13,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from plan_model import FIELDS, STATES, parse_plan
+from plan_model import FIELDS, IMAGE_TYPES, STATES, parse_plan, read_evidence_image
 
 ASSETS = Path(__file__).resolve().parents[1] / 'assets'
 
@@ -32,6 +33,10 @@ def metadata(root: Path) -> dict:
 
 def public_report(report: dict, meta: dict) -> dict:
     return {**{key: value for key, value in report.items() if key != 'sources'}, **meta}
+
+
+def data_uri(path: Path, plan_dir: Path) -> str:
+    return f"data:{IMAGE_TYPES[path.suffix.lower()]};base64,{base64.b64encode(read_evidence_image(path, plan_dir)).decode('ascii')}"
 
 
 def task_context(report: dict, task_id: str, root: Path, plan_dir: Path) -> dict:
@@ -90,6 +95,7 @@ def snapshot(root: Path, plan_dir: Path, output: Path) -> tuple[dict, dict]:
     graph = public_report(report, metadata(root))
     for task in graph['tasks']:
         task['sourceUrl'] = quote(os.path.relpath(plan_dir / task['source'], output.parent), safe='/')
+        task['images'] = [{'alt': image['alt'], 'src': data_uri(plan_dir / image['path'], plan_dir)} for image in task['images']]
     return graph, report['sources']
 
 

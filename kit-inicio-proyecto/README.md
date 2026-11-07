@@ -110,3 +110,9 @@ python3 -B scripts/package_kit.py --output /ruta/kit-inicio-proyecto.zip
 Se incluyen únicamente prompt, documentación, scripts, skills, plantillas y pruebas; no se agregan `.env`, cachés, proyectos temporales, capturas ni datos de una aplicación.
 
 La versión 1.2.0 conserva el esquema 1, los catorce campos y los comandos anteriores. Agrega task, --summary y el flujo compartido; las instalaciones anteriores se concilian preservando datos y evidencia. El procedimiento y las mediciones disponibles están en [EVALUACION.md](EVALUACION.md): bytes de salida de la CLI medidos; sin mediciones de ahorro de tokens o tiempo de un agente.
+
+## Evidencia visual de las tareas
+
+En Evidencia actual se pueden declarar capturas con `![Descripción](capturas/despues.png)`, relativas al Markdown de la tarea y dentro de docs/plan-maestro. Requieren descripción, formato PNG/JPG/GIF/WebP y hasta 5 MB por archivo; se rechazan rutas externas, URL, SVG y enlaces simbólicos, incluidos directorios enlazados. La lectura se limita y se comprueba nuevamente al exportar.
+
+La galería del detalle conserva el texto original, permite ampliar y recorrer imágenes con botones/flechas y se incluye como data URI en el HTML offline. El servidor no expone rutas de imágenes y detecta sus cambios. El HTML crece con las capturas; no incluir secretos ni datos personales. Esta validación puede rechazar imágenes Markdown antiguas con rutas que no cumplan esas condiciones, sin cambiar el esquema 1 ni los catorce campos. Las consultas task y report --summary se conservan.

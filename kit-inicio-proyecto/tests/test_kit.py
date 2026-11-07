@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 KIT = Path(__file__).resolve().parents[1]
 SCRIPTS = KIT / 'skills/manage-project-roadmap/scripts'
 sys.path.insert(0, str(SCRIPTS))
-from plan_model import FIELDS, SCHEMA, STATES, parse_plan
+from plan_model import FIELDS, MAX_IMAGE_BYTES, SCHEMA, STATES, parse_plan
 from roadmap import metadata, render, snapshot
 from roadmap_server import Monitor, create_server
 
@@ -238,6 +238,79 @@ class ReportAndExportTest(PlanFixture):
         other, _ = snapshot(self.root, self.plan, self.root / 'exports/view.html')
         self.assertEqual('../docs/plan-maestro/01-prueba.md', other['tasks'][0]['sourceUrl'])
 
+    def test_evidence_images_are_embedded_and_keep_the_export_self_contained(self):
+        folder = self.plan / 'capturas'
+        folder.mkdir()
+        (folder / 'despues.PNG').write_bytes(b'imagen')
+        self.validate(task(**{'Evidencia actual': 'Pantalla lista\n  - ![Después del cambio](capturas/despues.PNG)'}))
+        report = parse_plan(self.plan)
+        self.assertEqual([{'alt': 'Después del cambio', 'path': 'capturas/despues.PNG'}], report['tasks'][0]['images'])
+        graph, _ = snapshot(self.root, self.plan, self.output)
+        self.assertEqual([{'alt': 'Después del cambio', 'src': 'data:image/png;base64,aW1hZ2Vu'}], graph['tasks'][0]['images'])
+        self.assertIn('data:image/png;base64,aW1hZ2Vu', render(graph))
+
+    def test_invalid_evidence_images_are_rejected(self):
+        (self.root / 'privada.png').write_bytes(b'privada')
+        (self.plan / 'script.svg').write_text('<svg/>', encoding='utf-8')
+        (self.plan / 'bien.png').write_bytes(b'imagen')
+        (self.plan / 'grande.png').write_bytes(b'0' * (MAX_IMAGE_BYTES + 1))
+        for reference, expected in (('![fuera](../../privada.png)', 'dentro del plan'), ('![falta](falta.png)', 'no existe'),
+                                    ('![web](https://example.com/a.png)', 'ruta relativa'), ('![svg](script.svg)', 'no permitido'),
+                                    ('![](bien.png)', 'texto alternativo'), ('![grande](grande.png)', 'supera')):
+            with self.subTest(reference=reference):
+                report = self.validate(task(**{'Evidencia actual': reference}))
+                self.assertFalse(report['valid'])
+                self.assertIn(expected, ' '.join(report['errors']))
+
+    def test_image_symlinks_and_symlinked_parent_directories_are_rejected(self):
+        folder = self.plan / 'original'
+        folder.mkdir()
+        (folder / 'captura.png').write_bytes(b'imagen')
+        (self.plan / 'enlace.png').symlink_to(folder / 'captura.png')
+        (self.plan / 'enlaces').symlink_to(folder, target_is_directory=True)
+        for path in ('enlace.png', 'enlaces/captura.png'):
+            with self.subTest(path=path):
+                report = self.validate(task(**{'Evidencia actual': f'![Captura]({path})'}))
+                self.assertFalse(report['valid'])
+                self.assertIn('enlaces simbólicos', ' '.join(report['errors']))
+
+    def test_nested_task_can_reference_an_image_in_its_parent_plan_directory(self):
+        (self.plan / 'captura.png').write_bytes(b'imagen')
+        nested = self.plan / 'modulo'
+        nested.mkdir()
+        self.validate(task())
+        (nested / 'otra.md').write_text(task('QA-002', **{'Evidencia actual': '![Captura](../captura.png)'}), encoding='utf-8')
+        report = parse_plan(self.plan)
+        self.assertTrue(report['valid'], report['errors'])
+        self.assertEqual('captura.png', next(item for item in report['tasks'] if item['id'] == 'QA-002')['images'][0]['path'])
+
+    def test_export_rechecks_an_image_if_it_becomes_a_symlink_after_validation(self):
+        from unittest.mock import patch
+        image = self.plan / 'captura.png'
+        image.write_bytes(b'imagen')
+        self.validate(task(**{'Evidencia actual': '![Captura](captura.png)'}))
+        real_parse = parse_plan
+        secret = self.root / 'privada.png'
+        secret.write_bytes(b'NO EXPORTAR')
+        def replace_after_parse(plan):
+            report = real_parse(plan)
+            image.unlink()
+            image.symlink_to(secret)
+            return report
+        with patch('roadmap.parse_plan', side_effect=replace_after_parse):
+            with self.assertRaises((ValueError, OSError)):
+                snapshot(self.root, self.plan, self.output)
+        self.assertFalse(self.output.exists())
+
+    def test_query_with_images_keeps_all_fields_and_does_not_embed_binary_payloads(self):
+        (self.plan / 'captura.png').write_bytes(b'imagen')
+        report = self.validate(task(**{'Evidencia actual': '![Captura](captura.png)'}))
+        result = self.cli('task', 'QA-001', '--format', 'json')
+        self.assertEqual(0, result.returncode, result.stderr)
+        context = json.loads(result.stdout)
+        self.assertEqual(report['tasks'][0]['fields'], context['task']['fields'])
+        self.assertNotIn('data:image', result.stdout)
+
     def test_invalid_plan_or_output_keeps_the_previous_artifact(self):
         self.output.write_text('Previous valid artifact', encoding='utf-8')
         self.validate(task(dependencies='QA-999'))
@@ -418,6 +491,16 @@ class MonitorTest(PlanFixture):
         moved.unlink()
         self.assertTrue(monitor.refresh())
         self.assertEqual(1, len(monitor.graph['tasks']))
+
+    def test_replacing_an_evidence_image_updates_the_snapshot(self):
+        image = self.plan / 'captura.png'
+        image.write_bytes(b'antes')
+        self.validate(task(**{'Evidencia actual': '![Captura](captura.png)'}))
+        monitor = self.monitor()
+        previous = monitor.graph['tasks'][0]['images'][0]['src']
+        image.write_bytes(b'despues')
+        self.assertTrue(monitor.refresh())
+        self.assertNotEqual(previous, monitor.graph['tasks'][0]['images'][0]['src'])
 
     def test_source_race_and_write_error_do_not_publish_partial_updates(self):
         monitor = self.monitor()
