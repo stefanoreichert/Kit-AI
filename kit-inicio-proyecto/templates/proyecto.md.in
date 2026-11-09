@@ -3,9 +3,10 @@
 Preparación iniciada el {{DATE}}. La instalación agrega herramientas y documentación, sin generar una aplicación ni declarar funciones terminadas.
 
 - Perfil de adaptación: `{{PROFILE}}` — {{PROFILE_DESCRIPTION}}
-- Raíz del código propio: `{{SOURCE_ROOT}}/`, relativa a este repositorio; `/src` es obligatoria salvo elección expresa del usuario. Documentar solicitud y fecha de cualquier excepción.
+- Raíz principal del código propio: `{{SOURCE_ROOT}}/`, relativa a este repositorio. La raíz predeterminada del perfil `{{PROFILE}}` es `{{DEFAULT_SOURCE_ROOT}}/`; en base es provisional hasta confirmar el stack. Documentar solicitud y fecha de una elección distinta; conservar rutas heredadas pendientes de conciliación sin atribuirles una autorización inexistente.
+- Organización del perfil: {{SOURCE_LAYOUT}}
 - Fuentes: [índice](fuentes/README.md), que conserva la respuesta y estado de la consulta.
-- Lenguaje/framework/versiones por componente: registrar los confirmados; consultar lo que falte y conservar combinaciones de stacks cuando correspondan.
+- Lenguaje/framework/versiones y rutas por componente: registrar los confirmados; consultar lo que falte y conservar combinaciones de stacks cuando correspondan. En un monorepositorio, registrar la raíz de cada componente; el perfil inicial no impone una raíz común.
 - Interfaz, plataformas y ejecución: por relevar.
 - Base de datos y persistencia: por relevar.
 - Integraciones y restricciones operativas: por relevar.

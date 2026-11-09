@@ -2,6 +2,16 @@
 
 La comparación de herramientas y la evaluación con un agente responden preguntas distintas. No convertir bytes, líneas o caracteres en tokens estimados ni atribuir porcentajes de ahorro sin mediciones del entorno.
 
+## Verificación de rutas por perfil — 2026-11-09
+
+Cambio de rutas, incorporado al kit 1.4.0: Laravel conserva `src/`; Go prepara `internal/` y `cmd/`; Flutter prepara `lib/`. Base mantiene `src/` provisional hasta confirmar el stack. Se actualizaron prompt, perfiles, flujo y documentos generados; se conserva el esquema 1 del plan y no se generan aplicaciones. La versión final integra también los cambios remotos de evidencia visual y microinteracciones de 1.3.0.
+
+Antes de integrar los cambios remotos, `python3 -B -m unittest discover -s tests -v` ejecutó 54 pruebas: 51 correctas y tres errores al abrir un puerto de loopback por restricciones del entorno. Las tres se ejecutaron después con permiso para el servidor local mediante `python3 -B -m unittest discover -s tests -v -k HttpTest`: todas correctas. Quedaron comprobadas esas 54 pruebas entre ambas ejecuciones; no se presenta la primera como una suite aprobada.
+
+Tras integrar los cambios remotos de 1.3.0 y resolver los conflictos de documentación y ZIP, se ejecutó la suite completa con permiso para loopback: 61 pruebas correctas en 3.760 segundos informados por unittest, código de salida 0. La comprobación de sintaxis JavaScript también terminó con código 0.
+
+La cobertura incluye rutas predeterminadas y elegidas por el usuario, dry-run sin escrituras, repetición con fecha conservada, colisiones y enlaces simbólicos en las nuevas rutas, conservación de instalaciones Go/Flutter bajo `src/` sin actualización parcial, paquete trasladado y comandos del plan. `node --check skills/manage-project-roadmap/assets/roadmap-tree.js` también terminó con código 0. No se ejecutaron compilaciones de aplicaciones Go/Flutter: esta entrega modifica el kit de preparación, sin código de producto.
+
 ## Mediciones disponibles — 2026-11-05
 
 Referencia anterior: `04f621f` (kit 1.1.0); candidato: kit 1.2.0 de esta entrega. Python 3.9.6, mismo intérprete/equipo y plan temporal instalado con la versión anterior: tres tareas iniciales pendientes, INI-002 seleccionada y una dependencia directa. No es una aplicación comercial ni una evaluación de desarrollo con agente.

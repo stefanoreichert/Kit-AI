@@ -12,13 +12,14 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 
 KIT = Path(__file__).resolve().parents[1]
-VERSION = '1.3.0'
+VERSION = '1.4.0'
 PROFILES = {
     'base': 'stack por consultar; no se adopta un framework automáticamente',
     'laravel': 'Laravel confirmado; versiones, UI, persistencia e integraciones se relevan en el proyecto',
     'flutter': 'Flutter confirmado; plataformas, estado, backend y persistencia se relevan en el proyecto',
     'go': 'Go confirmado; transporte, persistencia y operación se relevan en el proyecto',
 }
+SOURCE_ROOTS = {'base': 'src', 'laravel': 'src', 'go': 'internal', 'flutter': 'lib'}
 TEMPLATES = {
     'AGENTS.md.in': 'AGENTS.md', 'proyecto.md.in': 'docs/proyecto.md',
     'arquitectura.md.in': 'docs/arquitectura/README.md', 'decisiones.md.in': 'docs/decisiones/README.md',
@@ -60,7 +61,8 @@ def prepare(target: Path, name: str, profile: str, started: str | None = None,
             raise ValueError('El manifiesto existente no es válido.')
         started = started or old.get('created_date')
         source_root = source_root if source_root is not None else old.get('source_root')
-    source_root = 'src' if source_root is None else source_root
+    default_source_root = SOURCE_ROOTS[profile]
+    source_root = default_source_root if source_root is None else source_root
     if (not isinstance(source_root, str) or not source_root or source_root != source_root.strip()
             or any(ord(char) < 32 for char in source_root) or '\\' in source_root or ':' in source_root
             or PurePosixPath(source_root).is_absolute()
@@ -71,9 +73,18 @@ def prepare(target: Path, name: str, profile: str, started: str | None = None,
     if not isinstance(started, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', started):
         raise ValueError('La fecha debe ser ISO: AAAA-MM-DD.')
     date.fromisoformat(started)
+    layouts = {
+        'base': f'`{source_root}/` es provisional hasta confirmar el stack; definir las rutas por componente al relevarlo.',
+        'laravel': f'`{source_root}/<Contexto>/{{Domain,Application,Infrastructure,UI}}`; configurar un prefijo PSR-4 propio hacia esta raíz.',
+        'go': f'`{source_root}/<contexto>/{{domain,application,adapters}}`; `cmd/<aplicacion>/main.go` inicia el proceso y `{source_root}/bootstrap/` conecta las dependencias.',
+        'flutter': f'`{source_root}/contexts/<contexto>/{{domain,application,infrastructure,presentation}}`; `{source_root}/app/` contiene router, tema y composición, y `{source_root}/main.dart` inicia la aplicación. Extraer paquetes Dart cuando se necesite aislamiento de dependencias o reutilización.',
+    }
     values = {'NAME': name, 'PROFILE': profile, 'PROFILE_DESCRIPTION': PROFILES[profile], 'DATE': started,
-              'SOURCE_ROOT': source_root}
+              'SOURCE_ROOT': source_root, 'DEFAULT_SOURCE_ROOT': default_source_root,
+              'SOURCE_LAYOUT': layouts[profile]}
     files = {source_root + '/.gitkeep': b''}
+    if profile == 'go':
+        files['cmd/.gitkeep'] = b''
     for source, destination in TEMPLATES.items():
         files[destination] = render((KIT / 'templates' / source).read_text(encoding='utf-8'), values).encode('utf-8')
     required = (
@@ -96,7 +107,8 @@ def prepare(target: Path, name: str, profile: str, started: str | None = None,
             files['.agents/skills/' + path.relative_to(KIT / 'skills').as_posix()] = path.read_bytes()
     files['.agents/project.json'] = encode({'name': values['NAME'], 'profile': profile,
                                            'stage': 'preparacion', 'plan_schema_version': 1,
-                                           'source_root': source_root, 'source_root_override': source_root != 'src',
+                                           'source_root': source_root, 'source_root_default': default_source_root,
+                                           'source_root_override': source_root != default_source_root,
                                            'sources_index': 'docs/fuentes/README.md'})
     files['.agents/project-kit.json'] = encode({'kit_version': VERSION, 'created_date': started,
                                                'source_root': source_root,
@@ -176,7 +188,7 @@ def main(argv=None) -> int:
     parser.add_argument('--profile', choices=PROFILES, default='base')
     parser.add_argument('--date', help='Fecha inicial ISO; por defecto hoy o la fecha de la instalación existente.')
     parser.add_argument('--dry-run', action='store_true')
-    parser.add_argument('--source-root', help='Excepción elegida expresamente por el usuario a la raíz src; ruta relativa al proyecto.')
+    parser.add_argument('--source-root', help='Raíz relativa elegida por el usuario en lugar de la del perfil: base/Laravel src, Go internal, Flutter lib.')
     args = parser.parse_args(argv)
     try:
         result = install(args.target, args.name, args.profile, args.date, args.dry_run, args.source_root)

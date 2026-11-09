@@ -1,6 +1,6 @@
 # Preparación de {{NAME}}
 
-La instalación prepara las herramientas y la raíz `{{SOURCE_ROOT}}/` con `.gitkeep`; las tareas siguientes requieren análisis del proyecto. El stack y las fuentes se consultan al iniciar, usando los datos ya informados. No se generaron funcionalidades.
+La instalación prepara las herramientas y la raíz `{{SOURCE_ROOT}}/` con `.gitkeep` (en Go, también `cmd/.gitkeep`); las tareas siguientes requieren análisis del proyecto. El stack y las fuentes se consultan al iniciar, usando los datos ya informados. No se generaron funcionalidades.
 
 ## Tareas
 
@@ -29,9 +29,9 @@ La instalación prepara las herramientas y la raíz `{{SOURCE_ROOT}}/` con `.git
 - **Dependencias:** INI-001
 - **Alcance:** definir lenguaje, fronteras, propiedad de datos y contratos, adaptando las capas al stack confirmado
 - **Fuera de alcance:** construir servicios, instalar frameworks o suponer microservicios
-- **Invariantes:** raíz del código src salvo elección explícita del usuario; dependencias hacia el núcleo, dominio independiente y escrituras por casos de uso
+- **Invariantes:** organización por contexto y stack confirmado, conservando las rutas registradas; dependencias hacia el núcleo, dominio independiente y escrituras por casos de uso
 - **Contratos y archivos previstos:** docs/arquitectura/README.md y decisiones relacionadas
-- **Criterios de aceptación:** contextos justificados por procesos y reglas bajo la raíz registrada, contratos y dependencias explícitos, autoload/imports previstos sin mover el núcleo al framework y decisiones abiertas identificadas; cualquier excepción a src tiene solicitud y fecha
+- **Criterios de aceptación:** contextos justificados por procesos y reglas bajo las rutas registradas por componente, contratos y dependencias explícitos, autoload/imports y composición previstos sin acoplar el núcleo al framework y decisiones abiertas identificadas; cualquier elección distinta del perfil tiene solicitud y fecha, y las rutas heredadas se concilian sin traslados automáticos
 - **Responsable:** sin asignar
 - **Fecha de inicio:** pendiente
 - **Última actualización:** {{DATE}}

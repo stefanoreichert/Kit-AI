@@ -1,10 +1,10 @@
 # Kit de inicio de proyectos
 
-Base para preparar proyectos con arquitectura hexagonal y DDD, consultar fuentes y stack y mantener un plan maestro con visor. La raíz del código propio es `/src` en la raíz del repositorio, siempre salvo elección expresa del usuario. Requiere Python 3.9 o posterior para las herramientas; no requiere paquetes Python ni un framework de producto. El perfil se elige con el usuario al iniciar cada proyecto.
+Base para preparar proyectos con arquitectura hexagonal y DDD, consultar fuentes y stack y mantener un plan maestro con visor. La organización se adapta al stack confirmado: Laravel en `src/`, servicios Go en `internal/` y `cmd/`, Flutter en `lib/`. Requiere Python 3.9 o posterior para las herramientas; no requiere paquetes Python ni un framework de producto. El perfil se elige con el usuario al iniciar cada proyecto.
 
 ## Uso habitual
 
-1. Copiar o adjuntar esta carpeta completa, o su ZIP, en el chat del proyecto nuevo.
+1. Usar esta carpeta desde una copia del repositorio o adjuntarla completa al chat del proyecto nuevo. El ZIP es opcional y solo facilita el traslado.
 2. Pegar [PROMPT_MAESTRO.md](PROMPT_MAESTRO.md) y completar los datos conocidos.
 3. El agente pregunta explícitamente qué fuentes usar y si hay otras además de las detectadas, consulta requisitos y stack pendientes y prepara el proyecto. El código funcional empieza cuando se lo solicites.
 
@@ -34,23 +34,32 @@ python3 -B scripts/init_project.py --target /ruta/al/proyecto --name "Mi proyect
 
 Perfiles disponibles: `base` (stack pendiente), `laravel`, `flutter` y `go`. Son guías de adaptación, no selección automática de lenguaje, versión, UI, ORM o proveedor. Cuando el usuario confirma una combinación distinta, el agente completa el perfil local respetando las reglas comunes.
 
-Un proyecto puede combinar stacks. `--profile` indica la guía inicial de instalación; la ficha conserva el stack de cada componente y la skill de arquitectura consulta los perfiles que correspondan. No obliga a usar el mismo lenguaje en backend, cliente y herramientas.
+Un proyecto puede combinar stacks. `--profile` indica la guía inicial de instalación; la ficha conserva el stack y las rutas de cada componente y la skill de arquitectura consulta los perfiles que correspondan. Por ejemplo, un backend Go puede vivir en `backend/` con `go.mod`, `internal/` y `cmd/`, y el cliente Flutter en `mobile/` con `pubspec.yaml` y `lib/`. Esa distribución se define al relevar el proyecto; el instalador no crea aplicaciones ni detecta componentes automáticamente. Un único kit y plan pueden coordinar ambos componentes, sin imponerles una raíz común.
 
-El instalador no sobrescribe archivos diferentes, no sigue enlaces simbólicos en sus destinos y comprueba todas las colisiones antes de escribir. Una repetición con la misma configuración conserva los archivos idénticos. Si ya existe `AGENTS.md`, un plan u otra skill con contenido distinto, informa las rutas en conflicto sin crear un proyecto parcial; el agente debe conciliar esa instalación existente. Prepara `src/.gitkeep`, sin contextos inventados, dependencias del producto ni código funcional.
+El instalador no sobrescribe archivos diferentes, no sigue enlaces simbólicos en sus destinos y comprueba todas las colisiones antes de escribir. Una repetición con la misma configuración conserva los archivos idénticos. Si ya existe `AGENTS.md`, un plan u otra skill con contenido distinto, informa las rutas en conflicto sin crear un proyecto parcial; el agente debe conciliar esa instalación existente. Prepara `.gitkeep` en las rutas del perfil, sin contextos inventados, dependencias del producto ni código funcional.
 
-## Raíz del código y excepciones
+## Organización por stack
 
-Todos los perfiles usan `src/` por defecto. En Laravel, los contextos se organizan como `src/<Contexto>/{Domain,Application,Infrastructure,UI}` y se configura autoload hacia esa ruta. `app/Contexts` no es una alternativa automática. Los perfiles Go y Flutter también conservan la raíz src adaptando sus paquetes e imports; solo los puntos técnicos de arranque/composición quedan en las rutas que requieran sus herramientas.
+Las rutas siguientes son relativas a la raíz del repositorio o del componente correspondiente. Se conserva la arquitectura por bounded context y se adapta el empaquetado:
 
-Solo si el usuario pidió expresamente otra ubicación, el agente registra la solicitud y fecha en arquitectura y decisiones y usa `--source-root ruta/relativa`. Esta opción no selecciona una raíz según el framework. `.agents/project.json` registra `source_root` y si hay una excepción; las repeticiones conservan la raíz elegida. `/src` aquí significa `<raíz-del-repositorio>/src`, no `/src` del sistema operativo.
+| Perfil | Organización prevista | Rutas preparadas por el instalador |
+| --- | --- | --- |
+| `base` | Stack pendiente; `src/` provisional hasta confirmarlo | `src/.gitkeep` |
+| `laravel` | `src/<Contexto>/{Domain,Application,Infrastructure,UI}` y autoload PSR-4 propio | `src/.gitkeep` |
+| `go` | `internal/<contexto>/{domain,application,adapters}`, composición en `internal/bootstrap/` y arranque en `cmd/<aplicacion>/main.go` | `internal/.gitkeep`, `cmd/.gitkeep` |
+| `flutter` | `lib/contexts/<contexto>/{domain,application,infrastructure,presentation}`, composición en `lib/app/` y arranque en `lib/main.dart` | `lib/.gitkeep` |
 
-Para actualizar una instalación anterior, conciliar AGENTS, skills y documentación con esta versión y registrar la raíz y la consulta de fuentes. No volver a ejecutar el instalador para sobrescribirlos ni mover código existente automáticamente: un traslado requiere un pedido que cubra esa refactorización.
+Los nombres de contextos son ejemplos de organización, no módulos instalados. En Go, `internal/` en la raíz no impide imports entre contextos hermanos: sus fronteras y contratos se verifican. En Flutter, el núcleo usa Dart sin imports de Flutter ni adaptadores. Cuando se necesite aislamiento de dependencias o reutilización, se puede extraer un paquete como `packages/ventas_core/`, con API pública, implementación en `lib/src/`, pruebas propias y un `pubspec.yaml` sin Flutter. No se impone un paquete por cada capa. Los perfiles explican los detalles y referencias oficiales.
+
+Si el usuario elige otra raíz, registrar solicitud y fecha en arquitectura y decisiones y usar `--source-root ruta/relativa`. En Go esta opción cambia la raíz de la lógica; el arranque sigue en `cmd/`. `.agents/project.json` registra `source_root`, `source_root_default` del perfil y `source_root_override` (diferencia respecto del valor predeterminado). Este indicador no prueba que una ruta heredada haya sido elegida expresamente. Las repeticiones conservan la raíz registrada en `.agents/project-kit.json` y la fecha inicial.
+
+Para actualizar una instalación anterior, conciliar AGENTS, skills y documentación con esta versión y registrar las rutas y la consulta de fuentes. Las instalaciones antiguas de Go/Flutter bajo `src/` conservan esa ruta al preparar una repetición; los archivos diferentes causan un rechazo sin escrituras. No volver a ejecutar el instalador para sobrescribirlos ni mover código existente automáticamente: un traslado requiere un pedido que cubra esa refactorización. Al resolver el stack de un perfil base, conciliar su ruta provisional con la estructura del componente, sin migraciones automáticas.
 
 ## Recursos instalados
 
 ```text
 AGENTS.md
-src/.gitkeep
+<raíz-del-perfil>/.gitkeep
 .agents/project.json
 .agents/project-kit.json
 .agents/skills/arquitectura-hexagonal-ddd/
@@ -66,6 +75,8 @@ docs/plantillas/
 ```
 
 Se preparan tres tareas iniciales de relevamiento/arquitectura/plan, todas pendientes. No hay requisitos de negocio ficticios ni funcionalidades declaradas terminadas. Las decisiones, módulos y tareas reales se agregan al analizar el proyecto. Las skills globales y los proyectos que sirvieron de referencia permanecen fuera de esta instalación.
+
+En Go se prepara además `cmd/.gitkeep`. No se crean `go.mod`, `pubspec.yaml`, archivos de arranque, contextos ni paquetes Dart durante esta preparación.
 
 ## Comandos desde el proyecto preparado
 
@@ -101,7 +112,7 @@ La autoridad del formato está en [plan-schema.json](skills/plan-maestro-desarro
 
 La base deriva de las reglas y herramientas de planificación anteriores, pero elimina sus referencias de producto y unifica los esquemas. No migra automáticamente planes con nueve campos o dependencias por punto y coma. Copiar este kit a un proyecto nuevo no cambia el plan ni las skills del repositorio donde se preparó.
 
-Para empaquetar una copia limpia:
+Para empaquetar una copia limpia cuando se necesite transportar el kit (opcional):
 
 ```sh
 python3 -B scripts/package_kit.py --output /ruta/kit-inicio-proyecto.zip
@@ -109,7 +120,7 @@ python3 -B scripts/package_kit.py --output /ruta/kit-inicio-proyecto.zip
 
 Se incluyen únicamente prompt, documentación, scripts, skills, plantillas y pruebas; no se agregan `.env`, cachés, proyectos temporales, capturas ni datos de una aplicación.
 
-La versión 1.3.0 conserva el esquema 1, los catorce campos y los comandos anteriores. Agrega task, --summary y el flujo compartido; las instalaciones anteriores se concilian preservando datos y evidencia. El procedimiento y las mediciones disponibles están en [EVALUACION.md](EVALUACION.md): bytes de salida de la CLI medidos; sin mediciones de ahorro de tokens o tiempo de un agente.
+La versión 1.4.0 conserva el esquema 1, los catorce campos y los comandos anteriores, incluidos task y --summary. Cambia las rutas predeterminadas de Go y Flutter, registra la raíz predeterminada del perfil y mantiene el flujo compartido, la evidencia visual y las microinteracciones del visor; las instalaciones anteriores se concilian preservando datos y evidencia. El procedimiento y las mediciones disponibles están en [EVALUACION.md](EVALUACION.md): bytes de salida de la CLI medidos; sin mediciones de ahorro de tokens o tiempo de un agente.
 
 ## Evidencia visual de las tareas
 

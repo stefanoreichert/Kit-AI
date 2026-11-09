@@ -624,43 +624,94 @@ class InstallerTest(unittest.TestCase):
         self.assertEqual(set(before), set(repeated['unchanged']))
         self.assertEqual(before, {name: (self.target / name).stat().st_mtime_ns for name in before})
 
-    def test_all_profiles_install_without_assuming_a_framework_for_base(self):
-        for profile in initializer.PROFILES:
+    def test_profiles_prepare_their_roots_and_repeat_without_product_code(self):
+        for profile, expected in {'base': 'src', 'laravel': 'src', 'go': 'internal', 'flutter': 'lib'}.items():
             with self.subTest(profile=profile):
                 target = self.root / profile
-                self.install(target=target, profile=profile)
+                preview = self.install(target=target, profile=profile, dry_run=True)
+                self.assertFalse(target.exists())
+                self.assertIn(expected + '/.gitkeep', preview['create'])
+                if profile == 'go':
+                    self.assertIn('cmd/.gitkeep', preview['create'])
+                result = self.install(target=target, profile=profile)
                 config = json.loads((target / '.agents/project.json').read_text())
                 self.assertEqual(profile, config['profile'])
-                self.assertEqual('src', config['source_root'])
-                self.assertTrue((target / 'src/.gitkeep').is_file())
-                for alternative in ('app/Contexts', 'lib', 'internal'):
+                self.assertEqual(expected, config['source_root'])
+                self.assertEqual(expected, config['source_root_default'])
+                self.assertFalse(config['source_root_override'])
+                self.assertEqual([target / expected / '.gitkeep'], list((target / expected).iterdir()))
+                prepared = {expected, 'cmd'} if profile == 'go' else {expected}
+                for alternative in {'src', 'lib', 'internal', 'cmd', 'app', 'go.mod', 'pubspec.yaml', 'composer.json'} - prepared:
                     self.assertFalse((target / alternative).exists())
                 self.assertTrue(parse_plan(target / 'docs/plan-maestro')['valid'])
+                before = {name: (target / name).stat().st_mtime_ns for name in result['create']}
+                self.assertEqual([], self.install(target=target, profile=profile, started=None)['create'])
+                self.assertEqual(before, {name: (target / name).stat().st_mtime_ns for name in before})
 
     def test_explicit_source_root_is_used_and_preserved_on_repeat(self):
-        self.install(source_root='codigo propio/contextos')
-        config = json.loads((self.target / '.agents/project.json').read_text())
-        self.assertEqual('codigo propio/contextos', config['source_root'])
-        self.assertTrue(config['source_root_override'])
-        self.assertTrue((self.target / config['source_root'] / '.gitkeep').is_file())
-        self.assertFalse((self.target / 'src').exists())
-        self.assertEqual([], self.install(source_root=None, started=None)['create'])
-        before = {path.relative_to(self.target): path.read_bytes() for path in self.target.rglob('*') if path.is_file()}
-        with self.assertRaises(ValueError):
-            self.install(source_root='src')
-        self.assertEqual(before, {path.relative_to(self.target): path.read_bytes() for path in self.target.rglob('*') if path.is_file()})
+        for profile, default in {'base': 'src', 'laravel': 'src', 'go': 'internal', 'flutter': 'lib'}.items():
+            with self.subTest(profile=profile):
+                target = self.root / profile
+                self.install(target=target, profile=profile, source_root='codigo propio/contextos')
+                config = json.loads((target / '.agents/project.json').read_text())
+                self.assertEqual('codigo propio/contextos', config['source_root'])
+                self.assertEqual(default, config['source_root_default'])
+                self.assertTrue(config['source_root_override'])
+                self.assertTrue((target / config['source_root'] / '.gitkeep').is_file())
+                self.assertFalse((target / default).exists())
+                if profile == 'go':
+                    self.assertTrue((target / 'cmd/.gitkeep').is_file())
+                self.assertEqual([], self.install(target=target, profile=profile, started=None)['create'])
+                before = {path.relative_to(target): path.read_bytes() for path in target.rglob('*') if path.is_file()}
+                with self.assertRaises(ValueError):
+                    self.install(target=target, profile=profile, source_root=default)
+                self.assertEqual(before, {path.relative_to(target): path.read_bytes() for path in target.rglob('*') if path.is_file()})
 
-    def test_cli_uses_src_unless_a_different_source_root_is_explicit(self):
-        command = [sys.executable, '-B', str(KIT / 'scripts/init_project.py'), '--name', 'Proyecto CLI', '--profile', 'laravel']
-        for folder, options, expected in (('default', [], 'src'), ('explicit', ['--source-root', 'app/Contexts'], 'app/Contexts')):
-            with self.subTest(folder=folder):
+    def test_legacy_go_and_flutter_roots_are_retained_without_partial_upgrade(self):
+        for profile, default in {'go': 'internal', 'flutter': 'lib'}.items():
+            with self.subTest(profile=profile):
+                target = self.root / profile
+                self.install(target=target, profile=profile, source_root='src')
+                manifest = target / '.agents/project-kit.json'
+                old = json.loads(manifest.read_text())
+                old['kit_version'] = '1.2.0'
+                manifest.write_text(json.dumps(old), encoding='utf-8')
+                config_path = target / '.agents/project.json'
+                old_config = json.loads(config_path.read_text())
+                old_config.pop('source_root_default')
+                old_config['source_root_override'] = False
+                config_path.write_text(json.dumps(old_config), encoding='utf-8')
+                business = target / 'src/existing.txt'
+                business.write_text('Preserve existing code', encoding='utf-8')
+                before = {path.relative_to(target): path.read_bytes() for path in target.rglob('*') if path.is_file()}
+                prepared = initializer.prepare(target, 'Proyecto ágil', profile)
+                config = json.loads(prepared['.agents/project.json'])
+                self.assertEqual('src', config['source_root'])
+                self.assertEqual(default, config['source_root_default'])
+                self.assertNotIn(default + '/.gitkeep', prepared)
+                with self.assertRaisesRegex(ValueError, 'Instalación sin cambios'):
+                    self.install(target=target, profile=profile, started=None)
+                self.assertEqual(before, {path.relative_to(target): path.read_bytes() for path in target.rglob('*') if path.is_file()})
+                self.assertFalse((target / default).exists())
+
+    def test_cli_uses_profile_defaults_or_an_explicit_root(self):
+        command = [sys.executable, '-B', str(KIT / 'scripts/init_project.py'), '--name', 'Proyecto CLI']
+        cases = (('laravel', [], 'src'), ('laravel', ['--source-root', 'app/Contexts'], 'app/Contexts'),
+                 ('go', [], 'internal'), ('go', ['--source-root', 'codigo'], 'codigo'),
+                 ('flutter', [], 'lib'), ('flutter', ['--source-root', 'cliente/lib'], 'cliente/lib'))
+        for index, (profile, options, expected) in enumerate(cases):
+            with self.subTest(profile=profile, options=options):
+                folder = str(index)
                 target = self.root / folder
-                result = subprocess.run(command + ['--target', str(target)] + options, capture_output=True, text=True)
+                result = subprocess.run(command + ['--target', str(target), '--profile', profile] + options, capture_output=True, text=True)
                 self.assertEqual(0, result.returncode, result.stderr)
                 config = json.loads((target / '.agents/project.json').read_text())
                 self.assertEqual(expected, config['source_root'])
                 self.assertTrue((target / expected / '.gitkeep').is_file())
-                self.assertFalse((target / ('app' if expected == 'src' else 'src')).exists())
+                if expected != 'src':
+                    self.assertFalse((target / 'src').exists())
+                if profile == 'go':
+                    self.assertTrue((target / 'cmd/.gitkeep').is_file())
 
     def test_invalid_source_roots_do_not_create_target_files(self):
         for source_root in ('', '.', '..', '../outside', '/src', 'src/../outside', 'src//core', 'src/./core',
@@ -670,21 +721,24 @@ class InstallerTest(unittest.TestCase):
             self.assertFalse(self.target.exists())
 
     def test_incompatible_source_root_blocks_all_writes(self):
-        self.target.mkdir()
-        source = self.target / 'src'
-        source.write_text('Existing file', encoding='utf-8')
-        with self.assertRaises(ValueError):
-            self.install()
-        self.assertEqual([source], list(self.target.iterdir()))
-        self.assertEqual('Existing file', source.read_text())
-        source.unlink()
-        outside = self.root / 'external-code'
-        outside.mkdir()
-        source.symlink_to(outside, target_is_directory=True)
-        with self.assertRaises(ValueError):
-            self.install()
-        self.assertEqual([], list(outside.iterdir()))
-        self.assertEqual([source], list(self.target.iterdir()))
+        for profile, root_name in (('base', 'src'), ('go', 'internal'), ('go', 'cmd'), ('flutter', 'lib')):
+            with self.subTest(profile=profile, root=root_name):
+                target = self.root / (profile + '-' + root_name)
+                target.mkdir()
+                source = target / root_name
+                source.write_text('Existing file', encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    self.install(target=target, profile=profile)
+                self.assertEqual([source], list(target.iterdir()))
+                self.assertEqual('Existing file', source.read_text())
+                source.unlink()
+                outside = self.root / ('external-' + profile + '-' + root_name)
+                outside.mkdir()
+                source.symlink_to(outside, target_is_directory=True)
+                with self.assertRaises(ValueError):
+                    self.install(target=target, profile=profile)
+                self.assertEqual([], list(outside.iterdir()))
+                self.assertEqual([source], list(target.iterdir()))
 
     def test_existing_business_files_are_preserved_without_creating_framework_contexts(self):
         source = self.target / 'src/Orders/Domain/order.php'
@@ -756,7 +810,9 @@ class PackageTest(unittest.TestCase):
             result = subprocess.run([sys.executable, '-B', str(extracted / 'scripts/init_project.py'), '--target', str(project),
                                      '--name', 'Proyecto portable', '--profile', 'go', '--date', '2026-11-03'], capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stderr)
-            self.assertTrue((project / 'src/.gitkeep').is_file())
+            self.assertTrue((project / 'internal/.gitkeep').is_file())
+            self.assertTrue((project / 'cmd/.gitkeep').is_file())
+            self.assertFalse((project / 'src').exists())
             self.assertTrue((project / 'docs/fuentes/README.md').is_file())
             command = [sys.executable, '-B', str(project / '.agents/skills/manage-project-roadmap/scripts/roadmap.py')]
             context = subprocess.run(command + ['task', 'INI-002', '--root', str(project), '--json'], capture_output=True, text=True)

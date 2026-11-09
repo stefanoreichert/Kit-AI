@@ -2,12 +2,12 @@
 
 Prompt maestro y kit reutilizable para iniciar proyectos con arquitectura hexagonal y DDD, tres skills, plantillas, validador y visor del plan maestro.
 
-El agente consulta las fuentes, los requisitos y el stack al comenzar cada proyecto. Reutiliza las decisiones ya informadas y puede trabajar con varios stacks por componente. Hay perfiles base, Laravel, Flutter y Go. La raíz del código propio es `/src` en la raíz del repositorio, siempre salvo elección expresa del usuario. El arranque prepara esa raíz, arquitectura, skills, plan y visor; las funcionalidades se desarrollan cuando el usuario las solicita.
+El agente consulta las fuentes, los requisitos y el stack al comenzar cada proyecto. Reutiliza las decisiones ya informadas y puede trabajar con varios stacks por componente. Laravel organiza los contextos en `src/`; los servicios Go, en `internal/` con arranque en `cmd/`; Flutter, en `lib/`. El perfil base conserva `src/` provisional hasta confirmar el stack. El arranque prepara esas rutas, arquitectura, skills, plan y visor; las funcionalidades se desarrollan cuando el usuario las solicita.
 
 ## Empezar un proyecto
 
 1. Abrí el [prompt maestro](kit-inicio-proyecto/PROMPT_MAESTRO.md).
-2. Adjuntá el [ZIP del kit](dist/kit-inicio-proyecto.zip) o la carpeta `kit-inicio-proyecto` al chat del nuevo proyecto.
+2. Usá la carpeta `kit-inicio-proyecto` desde tu copia del repositorio o adjuntala al chat del nuevo proyecto. El [ZIP del kit](dist/kit-inicio-proyecto.zip) es una alternativa opcional para transportarlo.
 3. Pegá el prompt e indicá los datos que ya conocés. El agente consulta las fuentes y el stack que falten antes de cerrar el relevamiento y aplicar un perfil.
 
 La [guía del kit](kit-inicio-proyecto/README.md) explica la instalación, el formato del plan, los comandos y sus límites.
@@ -24,7 +24,7 @@ cd Promt-AI/kit-inicio-proyecto
 python3 -B scripts/init_project.py --target /ruta/al/proyecto --name "Mi proyecto" --profile base --dry-run
 ```
 
-Cuando se hayan revisado los destinos, repetí el comando sin `--dry-run`. El perfil `base` conserva el stack pendiente de definición. El instalador prepara `src/.gitkeep`, no sobrescribe archivos diferentes ni genera código funcional del producto. Una ubicación distinta requiere elección expresa del usuario y la opción `--source-root`; el framework no decide esa excepción.
+Cuando se hayan revisado los destinos, repetí el comando sin `--dry-run`. Elegí `--profile laravel`, `--profile go` o `--profile flutter` si el stack ya está confirmado; `base` conserva la decisión pendiente. El instalador prepara `.gitkeep` en `src/` para base/Laravel, en `internal/` y `cmd/` para Go, y en `lib/` para Flutter. No sobrescribe archivos diferentes ni genera código funcional del producto. `--source-root` permite una raíz distinta elegida por el usuario; las rutas existentes se conservan hasta una conciliación autorizada.
 
 Las fuentes pueden ser adjuntos, enlaces, texto del chat o archivos en su ubicación actual. `docs/fuentes/README.md` es el índice que se instala en el proyecto, con la consulta pendiente hasta registrar tu respuesta. No hay que depositar los documentos en una carpeta para que el agente los solicite o analice.
 
@@ -38,7 +38,7 @@ python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py task INI-001
 python3 -B .agents/skills/manage-project-roadmap/scripts/roadmap.py report --status EN_CURSO --summary
 ```
 
-La consulta valida el plan completo antes de devolver una tarea con todos sus campos y resúmenes de dependencias. No escribe archivos. Los comandos anteriores siguen disponibles; --summary conserva errores y contadores sin volcar el listado. La versión 1.2.0 mantiene el esquema 1. Domain exige entidades, valores y agregados según identidad, invariantes y consistencia del modelo; no crea clases vacías por plantilla.
+La consulta valida el plan completo antes de devolver una tarea con todos sus campos y resúmenes de dependencias. No escribe archivos. Los comandos anteriores siguen disponibles; --summary conserva errores y contadores sin volcar el listado. La versión 1.4.0 mantiene el esquema 1 y adapta las rutas al perfil tecnológico. Domain exige entidades, valores y agregados según identidad, invariantes y consistencia del modelo; no crea clases vacías por plantilla.
 
 ## Skills incluidas
 
@@ -65,7 +65,7 @@ node --check skills/manage-project-roadmap/assets/roadmap-tree.js
 
 Node se usa para comprobar la sintaxis JavaScript; no es una dependencia de ejecución del kit. Las pruebas HTTP requieren permitir servidores temporales en loopback.
 
-El ZIP contiene los mismos 35 recursos del kit y un `MANIFEST.sha256`. Para regenerarlo:
+El ZIP es opcional; la instalación y las pruebas funcionan directamente desde el repositorio. Contiene los mismos 35 recursos del kit y un `MANIFEST.sha256`. Para generarlo:
 
 ```sh
 python3 -B scripts/package_kit.py --output ../dist/kit-inicio-proyecto.zip

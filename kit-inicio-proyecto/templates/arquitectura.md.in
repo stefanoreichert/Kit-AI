@@ -2,17 +2,19 @@
 
 Base acordada: arquitectura hexagonal y DDD. Perfil de adaptación: `{{PROFILE}}`. Los contextos de negocio y sus contratos se completan a partir de requisitos; instalar este documento no los define por inferencia.
 
-## Raíz obligatoria del código
+## Organización del código por stack
 
-Usar `/src` en la raíz del repositorio, siempre salvo elección explícita del usuario. Raíz registrada para esta instalación: `{{SOURCE_ROOT}}/`. La estructura base es `src/<Contexto>/{Domain,Application,Infrastructure,UI}`; los nombres y empaquetado internos se adaptan al lenguaje sin trasladar los contextos a directorios del framework. Registrar solicitud, fecha y alcance de cualquier raíz distinta en decisiones; no deducirla del stack, un ejemplo o una estructura heredada.
+Raíz registrada para esta instalación: `{{SOURCE_ROOT}}/`; raíz predeterminada del perfil `{{PROFILE}}`: `{{DEFAULT_SOURCE_ROOT}}/`. {{SOURCE_LAYOUT}}
 
-El instalador prepara solo la raíz con `.gitkeep`; los contextos se crean al definirlos y autorizar su trabajo. `app/Contexts` y `app/Domain` no son alternativas automáticas. Los archivos técnicos y de composición que el framework necesite fuera de esta raíz solo conectan adaptadores, sin contener reglas de negocio.
+Laravel usa `src/<Contexto>/{Domain,Application,Infrastructure,UI}`. Los servicios Go usan `internal/<contexto>/{domain,application,adapters}` y `cmd/<aplicacion>/main.go`. Flutter usa `lib/contexts/<contexto>/{domain,application,infrastructure,presentation}`, con composición en `lib/app/`; los paquetes Dart separados se justifican por aislamiento de dependencias o reutilización. En el perfil base, `src/` es provisional hasta confirmar el stack. En sistemas combinados, registrar aquí las rutas y fronteras de cada componente.
+
+El instalador prepara la raíz con `.gitkeep` y, en Go, también `cmd/.gitkeep`; los contextos se crean al definirlos y autorizar su trabajo. Registrar solicitud, fecha y alcance de una elección distinta del perfil. Conservar las rutas heredadas y conciliar sus diferencias sin mover código automáticamente ni atribuirles una elección expresa inexistente. La composición conecta dependencias sin reglas de negocio.
 
 ## Dependencias y responsabilidades
 
 Domain contiene invariantes y conceptos del negocio. Application coordina casos de uso con contratos del núcleo. Infrastructure implementa adaptadores externos. UI/Presentation traduce entrada y salida y delega las escrituras. La composición del proyecto conecta puertos con implementaciones.
 
-No introducir dependencias del framework, ORM o SDKs dentro de Domain/Application. Elegir las fronteras transaccionales y mecanismos de entrega según invariantes. La separación por contextos no implica microservicios.
+No introducir imports del framework, ORM o SDKs dentro de Domain/Application. En Flutter con un solo paquete, verificar esta regla mediante análisis y revisión de imports; para aislar también el manifiesto del núcleo, extraerlo a un paquete Dart sin dependencia de Flutter. En Go, `internal/` en la raíz no aísla los contextos hermanos: comprobar sus imports y contratos. Elegir las fronteras transaccionales y mecanismos de entrega según invariantes. La separación por contextos no implica microservicios.
 
 ## Mapa de contextos y datos
 
