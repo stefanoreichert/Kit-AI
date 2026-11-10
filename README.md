@@ -65,7 +65,7 @@ node --check skills/manage-project-roadmap/assets/roadmap-tree.js
 
 Node se usa para comprobar la sintaxis JavaScript; no es una dependencia de ejecución del kit. Las pruebas HTTP requieren permitir servidores temporales en loopback.
 
-El ZIP es opcional; la instalación y las pruebas funcionan directamente desde el repositorio. Contiene los mismos 35 recursos del kit y un `MANIFEST.sha256`. Para generarlo:
+El ZIP es opcional; la instalación y las pruebas funcionan directamente desde el repositorio. Contiene los mismos recursos del kit y un `MANIFEST.sha256`. Para generarlo:
 
 ```sh
 python3 -B scripts/package_kit.py --output ../dist/kit-inicio-proyecto.zip
